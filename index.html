@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="fil">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Burot Integrated School – Live Heat Index Monitoring System</title>
+<style>
+:root{--bg:#eef2f8;--card:#fff;--ink:#14213d;--mute:#5b6b85;--line:#d5deec;--blue:#0b3a9e;--orange:#e8590c;
+--c1:#1f9d8a;--c2:#f2b705;--c3:#e8590c;--c4:#9b1c1c;--c1b:#e3f5f1;--c2b:#fff6d6;--c3b:#ffe9dc;--c4b:#fbe3e3;
+color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1626;--card:#16213a;--ink:#e8eefc;--mute:#9db0d1;--line:#2a3a5c;--c1b:#123a37;--c2b:#41370f;--c3b:#46230f;--c4b:#4a1717;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1626;--card:#16213a;--ink:#e8eefc;--mute:#9db0d1;--line:#2a3a5c;--c1b:#123a37;--c2b:#41370f;--c3b:#46230f;--c4b:#4a1717;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;line-height:1.4}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--blue);z-index:10}
+header{background:var(--blue);color:#fff;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;position:sticky;top:env(safe-area-inset-top,0px);z-index:9}
+header small{display:block;font-size:11px;opacity:.8}
+header h1{margin:0;font-size:19px}
+header h1 span{font-weight:400;opacity:.85;font-size:14px;margin-left:8px}
+#clock{text-align:right;font-size:13px}
+#clock b{display:block;font-size:20px}
+#banner{background:var(--orange);color:#fff;padding:9px 16px;font-weight:600;font-size:14px}
+main{max-width:1100px;margin:0 auto;padding:14px;display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:800px){main{grid-template-columns:minmax(280px,360px) 1fr}.wide{grid-column:1/-1}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+h2{margin:0 0 8px;font-size:14px;color:var(--mute);font-weight:600}
+.gauge{text-align:center}
+.big{font-size:56px;font-weight:700;line-height:1}
+.chip{display:inline-block;margin-top:8px;padding:4px 12px;border-radius:99px;font-weight:700;font-size:13px;color:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;text-align:left}
+label{font-size:12px;color:var(--mute);display:block}
+input,select{width:100%;font:inherit;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+button{font:inherit;font-weight:600;padding:9px 12px;border:0;border-radius:6px;background:var(--blue);color:#fff;cursor:pointer;margin-top:10px;width:100%}
+button.alt{background:transparent;color:var(--mute);border:1px solid var(--line);font-weight:500}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #f2b705;outline-offset:2px}
+.dir{border-left:6px solid var(--c3);padding:10px 12px;border-radius:6px;background:var(--c3b)}
+.dir small{color:var(--mute)}
+.dir h3{margin:2px 0 6px;font-size:19px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:12px}
+.step{border:2px solid var(--line);border-radius:8px;padding:8px;text-align:center;font-size:12px;color:var(--mute)}
+.step b{display:block;font-size:15px;color:var(--ink)}
+.step.on{border-width:3px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
+.scroll{overflow-x:auto}
+svg text{fill:var(--mute);font-size:10px}
+footer{padding:10px 16px 20px;text-align:center;font-size:12px;color:var(--mute)}
+</style>
+</head>
+<body>
+<header>
+<div style="display:flex;gap:12px;align-items:center"><img src="data:image/jpeg;base64,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" alt="Burot Integrated School logo" width="52" height="52" style="border-radius:50%;background:#fff;flex:none"><div><small>Republika ng Pilipinas · Kagawaran ng Edukasyon</small><h1>Burot Integrated School<span>School Heat Index Monitoring System</span></h1></div></div>
+<div id="clock"><b id="t">--:--</b><span id="d"></span></div>
+</header>
+<div id="banner">Maglagay ng pagbasa ng temperatura at halumigmig upang makita ang hakbang.</div>
+<main>
+<section class="card gauge">
+<h2>PAGASA heat index gauge</h2>
+<svg viewBox="0 0 220 125" width="100%" style="max-width:300px" role="img" aria-label="Heat index gauge">
+<path d="M20 110 A90 90 0 0 1 64.9 32" fill="none" stroke="var(--c1)" stroke-width="16"/>
+<path d="M64.9 32 A90 90 0 0 1 110 20" fill="none" stroke="var(--c2)" stroke-width="16" transform="rotate(0)"/>
+<path d="M110 20 A90 90 0 0 1 175 47" fill="none" stroke="var(--c3)" stroke-width="16"/>
+<path d="M175 47 A90 90 0 0 1 200 110" fill="none" stroke="var(--c4)" stroke-width="16"/>
+<line id="needle" x1="110" y1="110" x2="110" y2="35" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
+<circle cx="110" cy="110" r="6" fill="var(--ink)"/>
+<text x="14" y="122">0</text><text x="190" y="122">54°C</text>
+</svg>
+<div class="big"><span id="hi">--</span><span style="font-size:24px">°C</span></div>
+<span class="chip" id="chip" style="background:var(--mute)">Walang datos</span>
+<div class="row">
+<div style="grid-column:1/-1"><label for="src">Pinagmulan ng datos</label><select id="src"><option value="live">Online (Open-Meteo, live)</option><option value="manual">Sensor sa silid-aralan (manual)</option></select></div>
+<div style="grid-column:1/-1"><label for="loc">Lokasyon</label><select id="loc"><option value="15.4755,120.5963">Burot, Tarlac City, Tarlac</option><option value="gps">Gamitin ang GPS ng device</option></select></div>
+<div style="grid-column:1/-1;font-size:12px;color:var(--mute)" id="status">Kumukuha ng datos…</div>
+<div><label for="temp">Temperatura (°C)</label><input id="temp" type="number" inputmode="decimal" step="0.1" min="15" max="55" placeholder="30.3"></div>
+<div><label for="rh">Halumigmig (%)</label><input id="rh" type="number" inputmode="decimal" step="1" min="0" max="100" placeholder="79"></div>
+<div style="grid-column:1/-1"><label for="slot">Oras ng pagbasa</label>
+<select id="slot"><option value="0800">8:00 n.u.</option><option value="1200">12:00 n.t.</option><option value="1400">2:00 n.h.</option><option value="extra">Karagdagang pagbasa</option></select></div>
+</div>
+<button id="log">I-record ang pagbasa</button>
+<button class="alt" id="clear">Burahin ang mga talaan</button>
+</section>
+
+<section class="card">
+<h2>DepEd institutional directives and protocols</h2>
+<div class="dir" id="dir"><small>Instruksyon sa pasok at klase</small><h3 id="dh">—</h3><div id="db"></div></div>
+<h2 style="margin-top:14px">Sundin ang 4H guide (batay sa heat index)</h2>
+<div class="steps" id="steps"></div>
+<p style="font-size:12px;color:var(--mute);margin:12px 0 0">Ang paaralan ay maaari pa ring magsuspinde ng klase kahit hindi pa umabot sa 42°C kung hindi na matiis ang init. Makipag-ugnayan sa SDS. (DepEd Memorandum No. 064, s. 2026)</p>
+</section>
+
+<section class="card wide">
+<h2>24-hour heat index progression and forecast</h2>
+<div class="scroll"><svg id="fc" viewBox="0 0 560 175" width="100%" style="min-width:420px" role="img" aria-label="24-hour heat index forecast"></svg></div>
+<p style="font-size:12px;color:var(--mute);margin:4px 0 0">Oras-oras na tantiya mula sa weather model. Gamitin upang planuhin ang paglipat ng oras ng klase.</p>
+</section>
+<section class="card wide">
+<h2>Talaan ngayong araw (Annex B)</h2>
+<div class="scroll"><table><thead><tr><th>Oras</th><th>Temp (°C)</th><th>RH (%)</th><th>Heat index (°C)</th><th>Antas</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="scroll" style="margin-top:10px"><svg id="chart" viewBox="0 0 560 170" width="100%" style="min-width:420px" role="img" aria-label="Heat index chart"></svg></div>
+<p style="font-size:12px;color:var(--mute);margin:8px 0 0">Isumite araw-araw ang datos sa DRRMS: bit.ly/PHExtremeHeat</p>
+</section>
+</main>
+<footer>Ang online na datos ay mula sa Open-Meteo weather model para sa lokasyon at hindi opisyal na PAGASA station reading. Ihambing sa opisyal na chart at advisory ng DOST-PAGASA bago magdesisyon.</footer>
+<script>
+var L=[{n:"HAYO",s:"Manageable",r:"Below 27°C",c:"--c1",b:"--c1b",h:"Regular na klase",t:"Face-to-face na klase na may heat-adapted na hakbang. Tiyaking may ligtas na inuming tubig, hydration breaks at maaliwalas na silid-aralan.",a:"Regular na klase."},
+{n:"HINAY",s:"Caution",r:"27–32°C",c:"--c2",b:"--c2b",h:"Paikliin / Hybrid",t:"Bawasan ang oras ng face-to-face (hal. 6–10 n.u.; 2–6 n.h.). Maaaring hybrid o home-based. Ilipat ang outdoor activities sa mas malamig na oras.",a:"Paikliin ang face-to-face na klase o gumamit ng hybrid / home-based."},
+{n:"HINGA",s:"Extreme Caution",r:"33–41°C",c:"--c3",b:"--c3b",h:"Walang face-to-face classes (home-based tasks)",t:"Suspendido ang face-to-face. Magbigay ng magagaang gawain, learning packets, DepEd TV/radyo at well-being check-ins upang maiwasan ang acute heat exhaustion.",a:"Walang face-to-face classes. Ipatupad ang mas magaan na home-based tasks."},
+{n:"HINTO",s:"Danger / Extreme Danger",r:"42°C pataas",c:"--c4",b:"--c4b",h:"Suspendido lahat ng gawain",t:"Suspendido ang lahat ng akademikong gawain (face-to-face at home-based). Panatilihin ang komunikasyon, safety checks at referral para sa suporta.",a:"Suspendido ang lahat ng gawain. Panatilihin ang komunikasyon at safety checks."}];
+function lvl(h){return h>=42?3:h>=33?2:h>=27?1:0}
+function hiC(t,rh){var T=t*9/5+32,H;
+ var s=0.5*(T+61+(T-68)*1.2+rh*0.094);
+ if((s+T)/2<80){H=s}else{
+ H=-42.379+2.04901523*T+10.14333127*rh-0.22475541*T*rh-0.00683783*T*T-0.05481717*rh*rh+0.00122874*T*T*rh+0.00085282*T*rh*rh-0.00000199*T*T*rh*rh;
+ if(rh<13&&T>=80&&T<=112)H-=((13-rh)/4)*Math.sqrt((17-Math.abs(T-95))/17);
+ if(rh>85&&T>=80&&T<=87)H+=((rh-85)/10)*((87-T)/5);}
+ return Math.round((H-32)*5/9)}
+var rec=[];try{rec=JSON.parse(localStorage.getItem("burot-hi")||"[]")}catch(e){}
+function save(){try{localStorage.setItem("burot-hi",JSON.stringify(rec))}catch(e){}}
+var $=function(i){return document.getElementById(i)};
+function show(h){var i=lvl(h),v=L[i],css=getComputedStyle(document.documentElement);
+ $("hi").textContent=h;$("chip").textContent=(i+1)+". "+v.n+" ("+v.s+")";$("chip").style.background="var("+v.c+")";
+ $("needle").setAttribute("transform","rotate("+(Math.max(0,Math.min(54,h))/54*180-90)+" 110 110)");
+ $("banner").textContent="DEPED MANDATORY ACTION: "+(i+1)+". "+v.n+" (Heat Index "+h+"°C): "+v.a;
+ $("dh").textContent=(i+1)+". "+v.n+" • "+v.h;$("db").textContent=v.t;
+ var d=$("dir");d.style.background="var("+v.b+")";d.style.borderLeftColor="var("+v.c+")";
+ draw(i)}
+function draw(on){$("steps").innerHTML=L.map(function(v,i){return '<div class="step'+(i===on?' on':'')+'" style="'+(i===on?'border-color:var('+v.c+');background:var('+v.b+')':'')+'"><b>'+(i+1)+". "+v.n+'</b>'+v.r+'<br>'+v.h+'</div>'}).join("")}
+function render(){
+ $("rows").innerHTML=rec.length?rec.map(function(r){return "<tr><td>"+r.l+"</td><td>"+r.t+"</td><td>"+r.rh+"</td><td><b>"+r.h+"</b></td><td>"+L[lvl(r.h)].n+"</td></tr>"}).join(""):'<tr><td colspan="5" style="color:var(--mute)">Wala pang talaan. Maglagay ng pagbasa sa itaas.</td></tr>';
+ var s='',W=560,Hh=170,x0=34,y=function(v){return 150-(v/54)*135};
+ [27,33,42].forEach(function(g){s+='<line x1="'+x0+'" x2="'+W+'" y1="'+y(g)+'" y2="'+y(g)+'" stroke="'+(g===42?'#c92a2a':'var(--line)')+'" stroke-dasharray="4 3"/><text x="2" y="'+(y(g)+3)+'">'+g+'°</text>'});
+ s+='<text x="'+(W-120)+'" y="'+(y(42)-4)+'">Red line: 42°C Danger</text>';
+ if(rec.length){var n=rec.length,pts=rec.map(function(r,i){return [x0+20+(n>1?i*(W-x0-50)/(n-1):(W-x0-40)/2),y(r.h),r]});
+ s+='<polyline fill="none" stroke="var(--blue)" stroke-width="2.5" points="'+pts.map(function(p){return p[0]+","+p[1]}).join(" ")+'"/>';
+ pts.forEach(function(p){s+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="4.5" fill="var('+L[lvl(p[2].h)].c+')" stroke="var(--ink)"/><text x="'+(p[0]-8)+'" y="'+(p[1]-9)+'">'+p[2].h+'</text><text x="'+(p[0]-12)+'" y="166">'+p[2].l+'</text>'})}
+ $("chart").innerHTML=s;
+ if(rec.length)show(rec[rec.length-1].h);else{draw(-1)}}
+function live(){var t=parseFloat($("temp").value),rh=parseFloat($("rh").value);if(isNaN(t)||isNaN(rh))return null;return {t:Math.round(t),rh:Math.round(rh/10)*10>100?100:Math.round(rh/10)*10,raw:[t,rh]}}
+["temp","rh"].forEach(function(i){$(i).addEventListener("input",function(){var v=live();if(v)show(hiC(v.raw[0],v.raw[1]))})});
+$("log").onclick=function(){var v=live();if(!v){$("banner").textContent="Maglagay ng temperatura at halumigmig bago mag-record.";return}
+ var sel=$("slot"),lab=sel.options[sel.selectedIndex].text,h=hiC(v.raw[0],v.raw[1]);
+ rec=rec.filter(function(r){return r.k!==sel.value||sel.value==="extra"});
+ rec.push({k:sel.value,l:lab,t:v.raw[0],rh:v.raw[1],h:h});save();render()};
+$("clear").onclick=function(){rec=[];save();$("hi").textContent="--";$("chip").textContent="Walang datos";$("chip").style.background="var(--mute)";$("needle").setAttribute("transform","rotate(-90 110 110)");$("dh").textContent="—";$("db").textContent="";$("banner").textContent="Maglagay ng pagbasa ng temperatura at halumigmig upang makita ang hakbang.";render()};
+function tick(){var n=new Date();$("t").textContent=n.toLocaleTimeString("en-PH",{hour:"numeric",minute:"2-digit",second:"2-digit"});$("d").textContent=n.toLocaleDateString("en-PH",{weekday:"short",month:"short",day:"numeric",year:"numeric"})}
+tick();setInterval(tick,1000);
+
+var coords=[15.4755,120.5963],liveHI=null,fc=[];
+function setStatus(m){$("status").textContent=m}
+function fetchLive(){
+ if($("src").value!=="live")return;
+ var u="https://api.open-meteo.com/v1/forecast?latitude="+coords[0]+"&longitude="+coords[1]+"&current=temperature_2m,relative_humidity_2m&hourly=temperature_2m,relative_humidity_2m&timezone=Asia%2FManila&forecast_days=2";
+ var ac=new AbortController(),to=setTimeout(function(){ac.abort()},12000);
+ fetch(u,{signal:ac.signal}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){clearTimeout(to);
+  var c=j.current;liveHI=hiC(c.temperature_2m,c.relative_humidity_2m);
+  $("temp").value=c.temperature_2m;$("rh").value=c.relative_humidity_2m;
+  var now=new Date(c.time),h=j.hourly;fc=[];
+  for(var i=0;i<h.time.length&&fc.length<25;i++){var tm=new Date(h.time[i]);if(tm>=new Date(now.getTime()-3600000))fc.push({l:h.time[i].slice(11,16),h:hiC(h.temperature_2m[i],h.relative_humidity_2m[i])})}
+  setStatus("Live: "+c.temperature_2m+"°C, "+c.relative_humidity_2m+"% RH. Updated "+c.time.slice(11,16)+" (Open-Meteo)");
+  show(liveHI);drawFc();render2()
+ }).catch(function(){clearTimeout(to);setStatus("Hindi makakonekta sa online na datos. Gamitin ang manual na pagbasa o subukan muli.")})}
+function drawFc(){var s='',W=560,x0=34,y=function(v){return 150-(Math.min(v,54)/54)*135};
+ [27,33,42].forEach(function(g){s+='<line x1="'+x0+'" x2="'+W+'" y1="'+y(g)+'" y2="'+y(g)+'" stroke="'+(g===42?'#c92a2a':'var(--line)')+'" stroke-dasharray="4 3"/><text x="2" y="'+(y(g)+3)+'">'+g+'°</text>'});
+ s+='<text x="'+(W-135)+'" y="'+(y(42)-4)+'">Red line: 42°C Danger</text>';
+ if(fc.length){var n=fc.length,px=function(i){return x0+8+i*(W-x0-20)/(n-1)};
+ s+='<polyline fill="none" stroke="var(--blue)" stroke-width="2.5" points="'+fc.map(function(p,i){return px(i)+","+y(p.h)}).join(" ")+'"/>';
+ fc.forEach(function(p,i){s+='<circle cx="'+px(i)+'" cy="'+y(p.h)+'" r="3.5" fill="var('+L[lvl(p.h)].c+')"/>';if(i%3===0)s+='<text x="'+(px(i)-10)+'" y="166">'+p.l+'</text>'});
+ var mx=fc.reduce(function(a,b){return b.h>a.h?b:a});s+='<text x="'+(px(fc.indexOf(mx))-14)+'" y="'+(y(mx.h)-8)+'">Peak '+mx.h+'°</text>'}
+ $("fc").innerHTML=s}
+function render2(){}
+$("src").addEventListener("change",function(){if($("src").value==="live")fetchLive();else{setStatus("Manual mode: ilagay ang pagbasa ng thermohygrometer.")}});
+$("loc").addEventListener("change",function(){var v=$("loc").value;
+ if(v==="gps"){if(!navigator.geolocation){setStatus("Hindi sinusuportahan ang GPS.");return}
+  navigator.geolocation.getCurrentPosition(function(p){coords=[p.coords.latitude,p.coords.longitude];fetchLive()},function(){setStatus("Hindi makuha ang GPS. Payagan ang location access.")})}
+ else{coords=v.split(",").map(Number);fetchLive()}});
+$("needle").setAttribute("transform","rotate(-90 110 110)");render();fetchLive();setInterval(fetchLive,600000);
+</script>
+</body>
+</html>
