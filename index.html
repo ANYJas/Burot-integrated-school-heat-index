@@ -69,8 +69,10 @@ footer{padding:10px 16px 20px;text-align:center;font-size:12px;color:var(--mute)
 <div class="big"><span id="hi">--</span><span style="font-size:24px">°C</span></div>
 <span class="chip" id="chip" style="background:var(--mute)">Walang datos</span>
 <div class="row">
-<div style="grid-column:1/-1"><label for="src">Pinagmulan ng datos</label><select id="src"><option value="live">Online (AccuWeather, live)</option><option value="manual">Sensor sa silid-aralan (manual)</option></select></div>
-<div style="grid-column:1/-1"><label for="key">AccuWeather API key (Burot, Tarlac · location 779270)</label><input id="key" type="password" autocomplete="off" placeholder="I-paste ang API key"><button class="alt" id="savekey" type="button" style="margin-top:6px">I-save ang key</button></div>
+<div style="grid-column:1/-1"><label for="src">Pinagmulan ng datos</label><select id="src"><option value="live">Online (AccuWeather, live)</option><option value="google">Online (Google Weather, live)</option><option value="manual">Sensor sa silid-aralan (manual)</option></select></div>
+<div style="grid-column:1/-1"><label for="key">AccuWeather API key (Burot, Tarlac · location 779270)</label><input id="key" type="password" autocomplete="off" placeholder="I-paste ang API key"></div>
+<div style="grid-column:1/-1"><label for="gkey">Google Weather API key</label><input id="gkey" type="password" autocomplete="off" placeholder="I-paste ang Google API key"></div>
+<div style="grid-column:1/-1;font-size:12px;color:var(--mute)">Nakatakda ang lokasyon: Burot Integrated School, Burot, Tarlac City (15.4142, 120.6006)<button class="alt" id="savekey" type="button" style="margin-top:6px">I-save ang mga key</button></div>
 <div style="grid-column:1/-1;font-size:12px;color:var(--mute)" id="status">Kumukuha ng datos…</div>
 <div><label for="temp">Temperatura (°C)</label><input id="temp" type="number" inputmode="decimal" step="0.1" min="15" max="55" placeholder="30.3"></div>
 <div><label for="rh">Halumigmig (%)</label><input id="rh" type="number" inputmode="decimal" step="1" min="0" max="100" placeholder="79"></div>
@@ -92,7 +94,7 @@ footer{padding:10px 16px 20px;text-align:center;font-size:12px;color:var(--mute)
 <section class="card wide">
 <h2>Heat index forecast (susunod na 12 oras)</h2>
 <div class="scroll"><svg id="fc" viewBox="0 0 560 175" width="100%" style="min-width:420px" role="img" aria-label="24-hour heat index forecast"></svg></div>
-<p style="font-size:12px;color:var(--mute);margin:4px 0 0">Oras-oras na tantiya mula sa AccuWeather. Gamitin upang planuhin ang paglipat ng oras ng klase.</p>
+<p style="font-size:12px;color:var(--mute);margin:4px 0 0">Oras-oras na tantiya mula sa napiling online na source. Gamitin upang planuhin ang paglipat ng oras ng klase.</p>
 </section>
 <section class="card wide">
 <h2>Talaan ngayong araw (Annex B)</h2>
@@ -101,7 +103,7 @@ footer{padding:10px 16px 20px;text-align:center;font-size:12px;color:var(--mute)
 <p style="font-size:12px;color:var(--mute);margin:8px 0 0">Isumite araw-araw ang datos sa DRRMS: bit.ly/PHExtremeHeat</p>
 </section>
 </main>
-<footer>Ang online na datos ay mula sa AccuWeather para sa Burot, Tarlac at hindi opisyal na PAGASA station reading. Ihambing sa opisyal na chart at advisory ng DOST-PAGASA bago magdesisyon.</footer>
+<footer>Ang online na datos ay mula sa AccuWeather o Google Weather para sa Burot, Tarlac at hindi opisyal na PAGASA station reading. Ihambing sa opisyal na chart at advisory ng DOST-PAGASA bago magdesisyon.</footer>
 <script>
 var L=[{n:"HAYO",s:"Manageable",r:"Below 27°C",c:"--c1",b:"--c1b",h:"Regular na klase",t:"Face-to-face na klase na may heat-adapted na hakbang. Tiyaking may ligtas na inuming tubig, hydration breaks at maaliwalas na silid-aralan.",a:"Regular na klase."},
 {n:"HINAY",s:"Caution",r:"27–32°C",c:"--c2",b:"--c2b",h:"Paikliin / Hybrid",t:"Bawasan ang oras ng face-to-face (hal. 6–10 n.u.; 2–6 n.h.). Maaaring hybrid o home-based. Ilipat ang outdoor activities sa mas malamig na oras.",a:"Paikliin ang face-to-face na klase o gumamit ng hybrid / home-based."},
@@ -147,14 +149,35 @@ function tick(){var n=new Date();$("t").textContent=n.toLocaleTimeString("en-PH"
 tick();setInterval(tick,1000);
 
 var ACCUWEATHER_KEY=""; /* Optional: i-paste dito ang API key para hindi na ilagay sa screen. */
+var GOOGLE_KEY="",GKEY="",GW="https://weather.googleapis.com/v1";
+try{GKEY=localStorage.getItem("burot-gkey")||"";}catch(e){}
 var LOCKEY="779270",AW="https://dataservice.accuweather.com",KEY="",liveHI=null,fc=[],lastFc=0;
 try{KEY=localStorage.getItem("burot-awkey")||""}catch(e){}
 function getKey(){return ACCUWEATHER_KEY||KEY}
 function fetchJ(u){var ac=new AbortController(),to=setTimeout(function(){ac.abort()},12000);
  return fetch(u,{signal:ac.signal}).then(function(r){clearTimeout(to);if(!r.ok)throw r.status;return r.json()})}
 function errMsg(e){return e===401||e===403?"Mali o hindi tanggap ang API key. Suriin ang key.":e===503||e===429?"Naubos ang limit ng API key ngayong araw. Subukan bukas o gamitin ang manual.":"Hindi makakonekta sa AccuWeather. Gamitin ang manual na pagbasa o subukan muli."}
+function gKey(){return GOOGLE_KEY||GKEY}
+var SCHOOL_LL=[15.4142,120.6006]; /* Burot Integrated School, Tarlac City (OpenStreetMap) */
+function gLL(){return SCHOOL_LL}
+function fetchGoogle(){
+ var k=gKey();if(!k){setStatus("Ilagay ang Google Weather API key sa ibaba.");return}
+ var ll=gLL(),q="key="+encodeURIComponent(k)+"&location.latitude="+ll[0]+"&location.longitude="+ll[1];
+ fetchJ(GW+"/currentConditions:lookup?"+q).then(function(c){
+  var t=c.temperature.degrees,rh=c.relativeHumidity,gh=c.heatIndex?Math.round(c.heatIndex.degrees):null;
+  liveHI=hiC(t,rh);$("temp").value=t;$("rh").value=rh;
+  setStatus("Live (Google Weather): "+t+"°C, "+rh+"% RH"+(gh!==null?", Google heat index "+gh+"°C":"")+". Updated "+new Date(c.currentTime).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Asia/Manila"}));
+  show(liveHI)
+ }).catch(function(e){setStatus(e===400||e===403?"Mali o hindi tanggap ang Google API key (suriin kung naka-enable ang Weather API).":e===429?"Naubos ang quota ng Google API key.":"Hindi makakonekta sa Google Weather. Gamitin ang manual na pagbasa o subukan muli.")});
+ if(Date.now()-lastFc>3*3600000){
+  fetchJ(GW+"/forecast/hours:lookup?"+q+"&hours=12").then(function(j){
+   fc=(j.forecastHours||[]).map(function(x){var st=(x.interval&&x.interval.startTime)||x.startTime;
+    return {l:new Date(st).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Asia/Manila"}),h:hiC(x.temperature.degrees,x.relativeHumidity)}});
+   lastFc=Date.now();drawFc()
+  }).catch(function(){})}}
 function fetchLive(){
- if($("src").value!=="live")return;
+ var sv=$("src").value;if(sv==="google"){fetchGoogle();return}
+ if(sv!=="live")return;
  var k=getKey();if(!k){setStatus("Ilagay ang AccuWeather API key sa ibaba.");return}
  var ek=encodeURIComponent(k);
  fetchJ(AW+"/currentconditions/v1/"+LOCKEY+"?apikey="+ek+"&details=true").then(function(a){
@@ -176,8 +199,11 @@ function drawFc(){var s='',W=560,x0=34,y=function(v){return 150-(Math.min(v,54)/
  var mx=fc.reduce(function(a,b){return b.h>a.h?b:a});s+='<text x="'+(px(fc.indexOf(mx))-14)+'" y="'+(y(mx.h)-8)+'">Peak '+mx.h+'°</text>'}
  $("fc").innerHTML=s}
 function render2(){}
-$("src").addEventListener("change",function(){if($("src").value==="live")fetchLive();else{setStatus("Manual mode: ilagay ang pagbasa ng thermohygrometer.")}});
-$("savekey").onclick=function(){KEY=$("key").value.trim();try{localStorage.setItem("burot-awkey",KEY)}catch(e){}lastFc=0;fetchLive()};
+$("src").addEventListener("change",function(){lastFc=0;fc=[];if($("src").value!=="manual")fetchLive();else{setStatus("Manual mode: ilagay ang pagbasa ng thermohygrometer.")}});
+$("savekey").onclick=function(){var a=$("key").value.trim(),g=$("gkey").value.trim();if(a)KEY=a;if(g)GKEY=g;try{if(a)localStorage.setItem("burot-awkey",KEY);if(g)localStorage.setItem("burot-gkey",GKEY)}catch(e){}lastFc=0;fetchLive()};
+if(getKey())$("key").parentNode.style.display="none";
+if(gKey())$("gkey").parentNode.style.display="none";
+if(getKey()&&gKey())$("savekey").style.display="none";
 $("needle").setAttribute("transform","rotate(-90 110 110)");render();fetchLive();setInterval(fetchLive,3600000);
 </script>
 </body>
