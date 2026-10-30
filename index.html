@@ -69,7 +69,7 @@ footer{padding:10px 16px 20px;text-align:center;font-size:12px;color:var(--mute)
 <div class="big"><span id="hi">--</span><span style="font-size:24px">°C</span></div>
 <span class="chip" id="chip" style="background:var(--mute)">Walang datos</span>
 <div class="row">
-<div style="grid-column:1/-1"><label for="src">Pinagmulan ng datos</label><select id="src"><option value="live">Online (AccuWeather, live)</option><option value="google">Online (Google Weather, live)</option><option value="manual">Sensor sa silid-aralan (manual)</option></select></div>
+<div style="grid-column:1/-1"><label for="src">Pinagmulan ng datos</label><select id="src"><option value="live">Online (AccuWeather, live)</option><option value="google">Online (Google Weather, live)</option><option value="wapi">Online (WeatherAPI, live)</option><option value="storm">Online (Stormglass, live)</option><option value="manual">Sensor sa silid-aralan (manual)</option></select></div>
 <div style="grid-column:1/-1"><label for="key">AccuWeather API key (Burot, Tarlac · location 779270)</label><input id="key" type="password" autocomplete="off" placeholder="I-paste ang API key"></div>
 <div style="grid-column:1/-1"><label for="gkey">Google Weather API key</label><input id="gkey" type="password" autocomplete="off" placeholder="I-paste ang Google API key"></div>
 <div style="grid-column:1/-1;font-size:12px;color:var(--mute)">Nakatakda ang lokasyon: Burot Integrated School, Burot, Tarlac City (15.4142, 120.6006)<button class="alt" id="savekey" type="button" style="margin-top:6px">I-save ang mga key</button></div>
@@ -137,7 +137,7 @@ function render(){
  s+='<polyline fill="none" stroke="var(--blue)" stroke-width="2.5" points="'+pts.map(function(p){return p[0]+","+p[1]}).join(" ")+'"/>';
  pts.forEach(function(p){s+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="4.5" fill="var('+L[lvl(p[2].h)].c+')" stroke="var(--ink)"/><text x="'+(p[0]-8)+'" y="'+(p[1]-9)+'">'+p[2].h+'</text><text x="'+(p[0]-12)+'" y="166">'+p[2].l+'</text>'})}
  $("chart").innerHTML=s;
- if(rec.length)show(rec[rec.length-1].h);else{draw(-1)}}
+ if(rec.length&&$("src").value==="manual")show(rec[rec.length-1].h);else{draw(-1)}}
 function live(){var t=parseFloat($("temp").value),rh=parseFloat($("rh").value);if(isNaN(t)||isNaN(rh))return null;return {t:Math.round(t),rh:Math.round(rh/10)*10>100?100:Math.round(rh/10)*10,raw:[t,rh]}}
 ["temp","rh"].forEach(function(i){$(i).addEventListener("input",function(){var v=live();if(v)show(hiC(v.raw[0],v.raw[1]))})});
 $("log").onclick=function(){var v=live();if(!v){$("banner").textContent="Maglagay ng temperatura at halumigmig bago mag-record.";return}
@@ -160,15 +160,46 @@ function errMsg(e){return e===401||e===403?"Mali o hindi tanggap ang API key. Su
 function gKey(){return GOOGLE_KEY||GKEY}
 var SCHOOL_LL=[15.4142,120.6006]; /* Burot Integrated School, Tarlac City (OpenStreetMap) */
 function gLL(){return SCHOOL_LL}
+function clearGauge(){$("hi").textContent="--";$("chip").textContent="Walang datos";$("chip").style.background="var(--mute)";$("needle").setAttribute("transform","rotate(-90 110 110)");$("dh").textContent="—";$("db").textContent="";$("banner").textContent="Walang live na datos. Suriin ang koneksyon o ang API key.";draw(-1)}
+var WEATHERAPI_KEY="e4f9664a58144f8db5365655263010";
+function fetchWapi(){
+ var ll=gLL();
+ fetchJ("https://api.weatherapi.com/v1/forecast.json?key="+encodeURIComponent(WEATHERAPI_KEY)+"&q="+ll[0]+","+ll[1]+"&days=2&aqi=no&alerts=no").then(function(j){
+  var c=j.current,t=c.temp_c,rh=c.humidity;
+  liveHI=hiC(t,rh);$("temp").value=t;$("rh").value=rh;
+  setStatus("Live (WeatherAPI): "+t+"°C, "+rh+"% RH"+(c.heatindex_c!==undefined?", WeatherAPI heat index "+Math.round(c.heatindex_c)+"°C":"")+". Updated "+String(c.last_updated).slice(11,16));
+  show(liveHI);
+  var hrs=[];(j.forecast.forecastday||[]).forEach(function(d){hrs=hrs.concat(d.hour)});
+  var now=Date.now();
+  fc=hrs.filter(function(x){return x.time_epoch*1000>=now-1800000}).slice(0,12).map(function(x){return {l:String(x.time).slice(11,16),h:hiC(x.temp_c,x.humidity)}});drawFc()
+ }).catch(function(e){clearGauge();setStatus(e===401||e===403?"Mali o hindi tanggap ang WeatherAPI key.":e===400?"May mali sa request ng WeatherAPI.":"Hindi makakonekta sa WeatherAPI. Gamitin ang manual na pagbasa o subukan muli.")})}
+var STORMGLASS_KEY="407a59fa-d42e-11f1-b149-0242ac120004-407a5a7c-d42e-11f1-b149-0242ac120004";
+function fetchStorm(){
+ var cached=null;try{cached=JSON.parse(localStorage.getItem("burot-sg")||"null")}catch(e){}
+ function use(hs){var now=Date.now(),cur=hs[0];hs.forEach(function(x){if(Math.abs(x.t-now)<Math.abs(cur.t-now))cur=x});
+  liveHI=hiC(cur.temp,cur.rh);$("temp").value=cur.temp.toFixed(1);$("rh").value=Math.round(cur.rh);
+  setStatus("Live (Stormglass): "+cur.temp.toFixed(1)+"°C, "+Math.round(cur.rh)+"% RH. Oras ng datos "+tl(cur.t));
+  show(liveHI);
+  fc=hs.filter(function(x){return x.t>=now-1800000}).slice(0,12).map(function(x){return {l:tl(x.t),h:hiC(x.temp,x.rh)}});drawFc()}
+ function tl(t){return new Date(t).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Asia/Manila"})}
+ if(cached&&cached.hs&&cached.hs.length&&Date.now()-cached.t<3*3600000){use(cached.hs);return}
+ var st=Math.floor(Date.now()/3600000)*3600,ll=gLL(),ac=new AbortController(),to=setTimeout(function(){ac.abort()},15000);
+ fetch("https://api.stormglass.io/v2/weather/point?lat="+ll[0]+"&lng="+ll[1]+"&params=airTemperature,humidity&source=sg&start="+st+"&end="+(st+13*3600),{headers:{Authorization:STORMGLASS_KEY},signal:ac.signal})
+ .then(function(r){clearTimeout(to);if(!r.ok)throw r.status;return r.json()}).then(function(j){
+  var hs=(j.hours||[]).map(function(h){return {t:Date.parse(h.time),temp:h.airTemperature&&h.airTemperature.sg,rh:h.humidity&&h.humidity.sg}}).filter(function(x){return typeof x.temp==="number"&&typeof x.rh==="number"});
+  if(!hs.length)throw 0;
+  try{localStorage.setItem("burot-sg",JSON.stringify({t:Date.now(),hs:hs}))}catch(e){}
+  use(hs)
+ }).catch(function(e){clearGauge();setStatus(e===401||e===403?"Mali o hindi tanggap ang Stormglass key.":e===402||e===429?"Naubos ang limit ng Stormglass key ngayong araw.":"Hindi makakonekta sa Stormglass. Gamitin ang manual na pagbasa o subukan muli.")})}
 function fetchGoogle(){
- var k=gKey();if(!k){setStatus("Ilagay ang Google Weather API key sa ibaba.");return}
+ var k=gKey();if(!k){setStatus("Ilagay ang Google Weather API key sa ibaba.");clearGauge();return}
  var ll=gLL(),q="key="+encodeURIComponent(k)+"&location.latitude="+ll[0]+"&location.longitude="+ll[1];
  fetchJ(GW+"/currentConditions:lookup?"+q).then(function(c){
   var t=c.temperature.degrees,rh=c.relativeHumidity,gh=c.heatIndex?Math.round(c.heatIndex.degrees):null;
   liveHI=hiC(t,rh);$("temp").value=t;$("rh").value=rh;
   setStatus("Live (Google Weather): "+t+"°C, "+rh+"% RH"+(gh!==null?", Google heat index "+gh+"°C":"")+". Updated "+new Date(c.currentTime).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Asia/Manila"}));
   show(liveHI)
- }).catch(function(e){setStatus(e===400||e===403?"Mali o hindi tanggap ang Google API key (suriin kung naka-enable ang Weather API).":e===429?"Naubos ang quota ng Google API key.":"Hindi makakonekta sa Google Weather. Gamitin ang manual na pagbasa o subukan muli.")});
+ }).catch(function(e){clearGauge();setStatus(e===400||e===403?"Mali o hindi tanggap ang Google API key (suriin kung naka-enable ang Weather API).":e===429?"Naubos ang quota ng Google API key.":"Hindi makakonekta sa Google Weather. Gamitin ang manual na pagbasa o subukan muli.")});
  if(Date.now()-lastFc>3*3600000){
   fetchJ(GW+"/forecast/hours:lookup?"+q+"&hours=12").then(function(j){
    fc=(j.forecastHours||[]).map(function(x){var st=(x.interval&&x.interval.startTime)||x.startTime;
@@ -176,16 +207,16 @@ function fetchGoogle(){
    lastFc=Date.now();drawFc()
   }).catch(function(){})}}
 function fetchLive(){
- var sv=$("src").value;if(sv==="google"){fetchGoogle();return}
+ var sv=$("src").value;if(sv==="google"){fetchGoogle();return}if(sv==="storm"){fetchStorm();return}if(sv==="wapi"){fetchWapi();return}
  if(sv!=="live")return;
- var k=getKey();if(!k){setStatus("Ilagay ang AccuWeather API key sa ibaba.");return}
+ var k=getKey();if(!k){setStatus("Ilagay ang AccuWeather API key sa ibaba.");clearGauge();return}
  var ek=encodeURIComponent(k);
  fetchJ(AW+"/currentconditions/v1/"+LOCKEY+"?apikey="+ek+"&details=true").then(function(a){
   var c=a[0],t=c.Temperature.Metric.Value,rh=c.RelativeHumidity,rf=c.RealFeelTemperature&&c.RealFeelTemperature.Metric?c.RealFeelTemperature.Metric.Value:null;
   liveHI=hiC(t,rh);$("temp").value=t;$("rh").value=rh;
   setStatus("Live (AccuWeather): "+t+"°C, "+rh+"% RH"+(rf!==null?", RealFeel "+rf+"°C":"")+". Updated "+String(c.LocalObservationDateTime).slice(11,16));
   show(liveHI)
- }).catch(function(e){setStatus(errMsg(e))});
+ }).catch(function(e){setStatus(errMsg(e));clearGauge()});
  if(Date.now()-lastFc>3*3600000){
   fetchJ(AW+"/forecasts/v1/hourly/12hour/"+LOCKEY+"?apikey="+ek+"&details=true&metric=true").then(function(a){
    fc=a.map(function(x){return {l:String(x.DateTime).slice(11,16),h:hiC(x.Temperature.Value,x.RelativeHumidity)}});lastFc=Date.now();drawFc()
